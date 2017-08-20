@@ -1,0 +1,258 @@
+<?php
+/**
+ * Template Name: locations-and-directions2
+ *
+ * Description: A page template that provides a key component of WordPress as a CMS
+ * by meeting the need for a carefully crafted introductory page. The front page template
+ * in Twenty Twelve consists of a page content area for adding text, images, video --
+ * anything you'd like -- followed by front-page-only widgets in one or two columns.
+ *
+ * @package WordPress
+ * 
+ * 
+ */
+
+ 
+
+get_header(); ?>
+  <div id="container">
+		<div id="content">
+			<?php the_post() ?>
+			<div id="post-<?php the_ID() ?>" class="post">
+				
+
+		    <!--google map///////////////////////////////////////////////////////-->
+		
+    <div>
+            
+
+
+            <div class="map">
+
+               
+			  <?php
+			$practiceName = our_doctors();	 
+			$practiceName=str_replace(" ","%20",$practiceName);
+			$practiceName = str_replace ("&", "%26", $practiceName);
+			if(function_exists('API_key')) {          
+			
+			$practiceURLTemp=(API_key());
+			}
+		  else{
+		   echo "API is wrong";
+		      }
+			$url= ("http://www.setonfamilyofdoctors.com/api/LocationsByPracticeName.aspx?AuthCode=".$practiceURLTemp."&PracticeName=".$practiceName);	
+				$strings= file_get_contents($url);  
+					$json3=json_decode($strings, true);
+			$lat=array();
+			$long=array();
+			$locations=array();
+			$addressLine1J=array();
+			$addressLine2J=array();
+			$addressJ=array();
+			//$fulladdressJ=array();
+			if(!empty($json3))
+			{
+            
+				foreach($json3 as $key=>$val)
+				{  
+							$location1= $val['Location'];
+							
+							array_push($locations,$location1);
+							
+							$address1= $val['AddressLine1'];
+							array_push($addressLine1J, $address1);
+							$address2= $val['AddressLine2'];
+							array_push($addressLine2J, $address2);
+							$city= $val['City'];
+							$state= $val['State'];
+							$zip= $val['ZipCode'];
+							array_push($addressJ,($city." ".$state." ".$zip));
+							$PhoneNumber= $val['PhoneNumber'];
+							$fax= $val['Fax'];
+							$latitude=$val['Latitude'];
+							array_push ($lat,$latitude);
+							$longitude=$val['Longitude'];
+							array_push ($long,$longitude);
+								
+					//Get Geo data////////////////////////////////////////////////////////
+					        $fullAddressTemp=($location1." ".$address1." ".$address2." ".$city." ".$state." ".$zip);
+							$fullAddress= urlencode($location1." ".$address1." ".$address2." ".$city." ".$state." ".$zip);
+							//array_push($fullAddressJ,$fullAddressTemp);
+							/*$geoAddress="http://maps.google.com/maps/api/geocode/json?address=".$fullAddress."&sensor=false";
+							$geocode=file_get_contents($geoAddress);
+							$output= json_decode($geocode);
+							$latTemp = $output->results[0]->geometry->location->lat;
+							if (is_array($lat)) {
+                                   array_push($lat,$latTemp);
+								}
+							else {echo "occupied.";}
+							
+							
+							$longTemp = $output->results[0]->geometry->location->lng;
+							array_push($long,$longTemp);*/
+							
+							//Insert to map
+                            					
+							
+							
+							//echo "<a href=''>View in the map</a>";
+							//$counter++;
+
+							//echo "<br/><br/>";
+				}
+
+				$locationMarkers = "";
+				$latlngArray = "";
+				$count = 1;
+				
+				
+				
+				
+				for($i=0; $i < sizeof($addressLine1J); $i++)
+				{
+				
+				
+                    $contentString = "var contentString" . $count . " = '<div class=mapflyout2><strong>" . $locations[$i] . "</strong><br/>".$addressLine1J[$i]."<br/>".$addressLine2J[$i]."<br/>".$addressJ[$i]."</div>';";
+                    $contentString .= "var infowindow" . $count . " = new google.maps.InfoWindow({content: contentString" . $count . ", maxWidth: 400} ); ";
+                    $locationMarkers .= "\n" . $contentString;
+
+                    $customPointer = "var myimage" . $count . " = '/wp-content/plugins/Senton Family of Doctors Plugin/Img/mapIcons/mapIcon" . $count . ".png'; ";
+					
+
+                    $locationMarkers .= "\n" . $customPointer;
+
+                    // create a line of JavaScript for marker on map for this record 
+                    $locationMarkers .= "\n" . "var mylatlng" . $count . " = new google.maps.LatLng(" . $lat[$i] . "," . $long[$i] . ");";
+
+                    $locationMarkers .= "\n" . "var marker" . $count . " = new google.maps.Marker({ position: mylatlng" . $count . ",  map: map, icon:myimage".$count.", title:\"" . $locations[$i] . "\" });";
+                    $infowindow = "var infowindow" . $count . " = new google.maps.InfoWindow({     content: contentString" . $count . " }); ";
+                    $locationMarkers .= "\n" . $infowindow;
+
+                    $listener = "google.maps.event.addListener(marker" . $count . ", 'click', function() { closewin(); currentinfowindow = infowindow" . $count . ";  infowindow" . $count . ".open(map,marker" . $count . "); });";
+
+                    $locationMarkers .= "\n" . $listener;
+                    $locationMarkers .= "\n" . "gmarkers.push(marker" . $count . ");";
+
+                    $latlngArray .= "mylatlng" . $count . ", ";						
+					$count = $count +1;
+				}
+
+                $initJavascript = "var map = null;\n";
+                $initJavascript .= "var gmarkers = []\n"; 
+                $initJavascript .= "var currentinfowindow = null;\n";
+
+                $initJavascript .= "function initialize() {\n";
+                $initJavascript .= "var latlng = new google.maps.LatLng(30.2669444, -97.7427778);\n";
+                $initJavascript .= "var myOptions = { zoom: 9, center: latlng, mapTypeId: google.maps.MapTypeId.ROADMAP };\n";
+                $initJavascript .= "map = new google.maps.Map(document.getElementById(\"map_canvas\"), myOptions);\n";
+                $initJavascript .= $locationMarkers;
+                //$initJavascript .= "ToggleCheckboxesVisibility();\n";
+                $initJavascript .= "}\n\n";
+
+                $initJavascript .= "function closewin()\n";
+                $initJavascript .= "{\n";
+                $initJavascript .= "    if (currentinfowindow!= null)\n";
+                $initJavascript .= "    {\n";
+                $initJavascript .= "        currentinfowindow.close();\n";
+                $initJavascript .= "    }\n";
+                $initJavascript .= "}\n\n";
+
+                $initJavascript .= "function myclick(i) {\n";
+                $initJavascript .= "    google.maps.event.trigger(gmarkers[i - 1], \"click\");\n";
+                $initJavascript .= "}\n";
+
+                $initJavascript .= "function doClose()\n ";
+                $initJavascript .= "{\n";
+                $initJavascript .= "    window.scrollTo(0,0);\n";
+                $initJavascript .= "}\n\n";
+
+                
+                $initJavascript .= "initialize();\n";				
+
+			}
+
+				
+			?>	
+<style type="text/css">
+   #map_canvas img {
+       margin: 0px
+   }
+</style>
+<div id="map_canvas" style="width: 500px; height: 600px; float:left"></div>
+			
+            <script type="text/javascript">
+           
+		    <?php echo $initJavascript; ?>
+
+			          
+            </script>	
+
+			
+
+
+			
+            </div>
+			<div style="  width:350px;float:left;padding-left: 50px">
+			  
+			  <?php
+			  $counter=1;
+			  
+			     
+			      foreach($json3 as $key=>$val){				  
+				  			  echo "<table width='350px' height='100px'> ";
+				      echo	"<tr><img src='/wp-content/plugins/Senton Family of Doctors Plugin/Img/mapIcons/mapIcon" . $counter . ".png'/> ".$val["Location"]."<br/>";	
+					  
+					  
+				 echo "</tr><tr>";
+					$address1= $val['AddressLine1'];
+					$address2= $val['AddressLine2'];
+					$city= $val['City'];
+					$state= $val['State'];
+					$zip= $val['ZipCode'];
+					$PhoneNumber= $val['PhoneNumber'];
+					$fax= $val['Fax'];				  
+				    //echo $location."<br/>";
+					echo $address1." ";
+					echo $address2." ";
+					echo $city.", ".$state." ".$zip."<br/>";
+				echo "</tr><tr>";
+					if(strlen($PhoneNumber) > 0 )
+					{
+					  echo "Phone: ".preg_replace('~.*(\d{3})[^\d]*(\d{3})[^\d]*(\d{4}).*~', '($1) $2-$3', $PhoneNumber). "<br/>";
+					}
+					if(strlen($fax) > 0 )
+					{echo "Fax: ".preg_replace('~.*(\d{3})[^\d]*(\d{3})[^\d]*(\d{4}).*~', '($1) $2-$3', $fax). "<br/>";}
+				echo"</tr<tr>";
+				    echo "<a href='javascript:myclick(".$counter.");doClose();'> View on the map</a><br/>";
+					echo "<a href='http://maps.google.com/maps?saddr=&daddr=".$fullAddress."'>Get Directions</a>";
+					echo "<br/><br/>";
+				echo "</tr>";
+				$counter++;
+				echo "</table>";
+				  }
+				
+	  ?>
+			</div>
+
+        </div>  
+
+        </div>  
+	    <!--////////////////////////////////End of google map/////////////////////////////-->
+
+     
+
+
+
+
+		
+		</div><!-- #content -->
+	</div><!-- #primary -->
+		
+				</div><!-- .entry-content ->
+			</div><!-- .post-->
+		</div><!-- #content -->
+	<!-- #container -->
+
+
+<?php get_footer() ?>
